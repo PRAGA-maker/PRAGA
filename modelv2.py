@@ -20,6 +20,7 @@ import numpy as np
 import tensorflow as tf
 from tensorflow import keras
 from tensorflow.keras import layers
+from sklearn.metrics import roc_curve, auc, classification_report
 
 def prot_extract(pdb_id):
     def download_and_format_pdb(pdb_id):
@@ -521,7 +522,7 @@ t_other = 0
 all_fastas = []
 all_ids = []
 all_pockets = []
-list_path = [r"C:\Users\prone\OneDrive\Desktop\drug_proj\n_data.csv",r"C:\Users\prone\OneDrive\Desktop\drug_proj\n_data copy.csv",r"C:\Users\prone\OneDrive\Desktop\drug_proj\n_data copy 2.csv",r"C:\Users\prone\OneDrive\Desktop\drug_proj\n_data copy 3.csv",r"C:\Users\prone\OneDrive\Desktop\drug_proj\n_data copy 4.csv"]
+list_path = [r"C:\Users\praneelpatel\Documents\GitHub\PRAGA\n_data.csv",r"C:\Users\praneelpatel\Documents\GitHub\PRAGA\n_data copy.csv",r"C:\Users\praneelpatel\Documents\GitHub\PRAGA\n_data copy 2.csv",r"C:\Users\praneelpatel\Documents\GitHub\PRAGA\n_data copy 3.csv",r"C:\Users\praneelpatel\Documents\GitHub\PRAGA\n_data copy 4.csv"]
 for path in list_path:
 
     with open(path, "r") as file:
@@ -555,7 +556,7 @@ pockets = all_pockets
 #find ligand --> smiles --> morgan fingerprint
 pdb_ids = all_ids
 ligand_list = []
-list_path = [r"C:\Users\prone\OneDrive\Desktop\drug_proj\n_data.csv",r"C:\Users\prone\OneDrive\Desktop\drug_proj\n_data copy.csv",r"C:\Users\prone\OneDrive\Desktop\drug_proj\n_data copy 2.csv",r"C:\Users\prone\OneDrive\Desktop\drug_proj\n_data copy 3.csv",r"C:\Users\prone\OneDrive\Desktop\drug_proj\n_data copy 4.csv"]
+list_path = [r"C:\Users\praneelpatel\Documents\GitHub\PRAGA\n_data.csv",r"C:\Users\praneelpatel\Documents\GitHub\PRAGA\n_data copy.csv",r"C:\Users\praneelpatel\Documents\GitHub\PRAGA\n_data copy 2.csv",r"C:\Users\praneelpatel\Documents\GitHub\PRAGA\n_data copy 3.csv",r"C:\Users\praneelpatel\Documents\GitHub\PRAGA\n_data copy 4.csv"]
 for id in pdb_ids:
     found = False
     for path in list_path:
@@ -683,7 +684,7 @@ def voxelize(coordinates, grid_size):
 
 voxel_pockets = []
 for pocket in pockets:
-    voxelized_pocket = voxelize(pocket,grid_size=1000)
+    voxelized_pocket = voxelize(pocket,grid_size=50)
     voxel_pockets.append(voxelized_pocket)
 voxel_pockets = np.array(voxel_pockets)
 
@@ -711,7 +712,7 @@ fingerprints = new_fingerprints
 print(type(fingerprints))
 
 # Hyperparameters
-VOXEL_SIZE = 1000
+VOXEL_SIZE = 50
 FINGERPRINT_SIZE = 1024
 NUM_CLASSES = 2  # Kd or Ki
 
@@ -749,9 +750,46 @@ model.compile(optimizer="adam", loss="sparse_categorical_crossentropy", metrics=
 
 
 print(model.summary())
+ 
+
+protein_data = pockets  # Random data for demonstration
+ligand_data = np.array(fingerprints)
+label_list = ["Kd", "Ki"] * 500
+labels = np.array([0 if label == "Kd" else 1 for label in label_list])
+
+# Training
+history = model.fit([protein_data, ligand_data], labels, epochs=20, batch_size=32, validation_split=0.2)
 
 
-# To train the model
-# Assuming `protein_data` is your 3D voxelized protein data and `ligand_data` is your Morgan Fingerprint data
-# And `labels` are your Kd/Ki labels
-# model.fit([protein_data, ligand_data], labels, epochs=20, batch_size=32, validation_split=0.2)
+# Visualization of Accuracy / Epochs
+plt.figure(figsize=(12, 4))
+plt.subplot(1, 2, 1)
+plt.plot(history.history["accuracy"], label="Training")
+plt.plot(history.history["val_accuracy"], label="Validation")
+plt.legend()
+plt.title("Accuracy / Epochs")
+
+
+# AUC-ROC Curve
+predicted_probs = model.predict([protein_data, ligand_data])
+fpr, tpr, _ = roc_curve(labels, predicted_probs[:, 1])
+roc_auc = auc(fpr, tpr)
+plt.subplot(1, 2, 2)
+plt.plot(fpr, tpr, color='darkorange', lw=2, label='ROC curve (area = %0.2f)' % roc_auc)
+plt.plot([0, 1], [0, 1], color='navy', lw=2, linestyle='--')
+plt.xlabel('False Positive Rate')
+plt.ylabel('True Positive Rate')
+plt.title('Receiver Operating Characteristic (ROC)')
+plt.legend(loc="lower right")
+
+
+plt.tight_layout()
+plt.show()
+
+
+# Classification Report
+predicted_labels = np.argmax(predicted_probs, axis=1)
+print(classification_report(labels, predicted_labels, target_names=["Kd", "Ki"]))
+
+
+
