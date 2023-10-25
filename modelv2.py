@@ -570,10 +570,7 @@ for id in pdb_ids:
 
         for line in lines:
             if ("Ki:&" or "Kd:&") in line:
-                if "Ki:&" in line:
-                    affinity_list.append("Ki")
-                if "Kd:&" in line:
-                    affinity_list.append("Kd")
+                oldline = line
                 line = line.split(",")
                 if found == False:
                     if line[0].upper() == id.upper():
@@ -584,6 +581,11 @@ for id in pdb_ids:
                         ligand = ligand[3:-1]
                         ligand_list.append(ligand)
                         found = True
+
+                        if "Ki:&" in oldline:
+                            affinity_list.append("Ki")
+                        if "Kd:&" in oldline:
+                            affinity_list.append("Kd")
 
 smiles = []
 isomeric_smiles_list = []
@@ -719,7 +721,6 @@ def visualize_voxels(voxel_grid):
 pockets = voxel_pockets
 fingerprints = new_fingerprints
 labels = affinity_list
-print(type(fingerprints))
 
 # Hyperparameters
 VOXEL_SIZE = 50
@@ -736,16 +737,19 @@ x = layers.MaxPooling3D(pool_size=2)(x)
 x = layers.Conv3D(64, kernel_size=3, activation="relu")(x)
 x = layers.MaxPooling3D(pool_size=2)(x)
 x = layers.Flatten()(x)
-protein_output = layers.Dense(128, activation="relu")(x)
+x = layers.Dense(128, activation="relu")(x)
+x = layers.Dropout(0.5)(x)  # Added dropout for regularization
+protein_output = layers.Dense(256, activation="relu")(x)  # Increased complexity
 
 # Dense layers for the ligand fingerprint
 y = layers.Dense(256, activation="relu")(ligand_input)
 y = layers.Dropout(0.5)(y)
-ligand_output = layers.Dense(128, activation="relu")(y)
+y = layers.Dense(128, activation="relu")(y)  # You can keep or remove this based on performance
+y = layers.Dropout(0.5)(y)  # Added dropout for regularization
+ligand_output = layers.Dense(256, activation="relu")(y)  # Increased complexity
 
-# Concatenate the outputs and finalize the model
 combined = layers.concatenate([protein_output, ligand_output])
-z = layers.Dense(128, activation="relu")(combined)
+z = layers.Dense(256, activation="relu")(combined)  # Increased complexity
 z = layers.Dropout(0.5)(z)
 final_output = layers.Dense(NUM_CLASSES, activation="softmax")(z)
 
@@ -758,6 +762,9 @@ print(model.summary())
 protein_data = pockets  # Random data for demonstration
 ligand_data = np.array(fingerprints)
 label_list = labels
+print(len(protein_data))
+print(len(ligand_data))
+print(len(label_list))
 labels = np.array([0 if label == "Kd" else 1 for label in label_list])
 
 # Training
@@ -784,7 +791,6 @@ plt.xlabel('False Positive Rate')
 plt.ylabel('True Positive Rate')
 plt.title('Receiver Operating Characteristic (ROC)')
 plt.legend(loc="lower right")
-
 
 plt.tight_layout()
 plt.show()
