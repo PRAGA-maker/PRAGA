@@ -527,7 +527,11 @@ for path in list_path:
 
     with open(path, "r") as file:
         lines = file.readlines()
-
+    new_lines = []
+    for line in lines:
+        if ("Ki:&" or "Kd:&") in line:
+            new_lines.append(line)
+    lines = new_lines
     n_pdb_bind, n_moad, n_binding_db, n_kd,n_ki, n_other,ids,pockets = extract_data(lines)
 
     t_n_pdbs += n_pdb_bind
@@ -556,24 +560,30 @@ pockets = all_pockets
 #find ligand --> smiles --> morgan fingerprint
 pdb_ids = all_ids
 ligand_list = []
+affinity_list = []
 list_path = [r"C:\Users\praneelpatel\Documents\GitHub\PRAGA\n_data.csv",r"C:\Users\praneelpatel\Documents\GitHub\PRAGA\n_data copy.csv",r"C:\Users\praneelpatel\Documents\GitHub\PRAGA\n_data copy 2.csv",r"C:\Users\praneelpatel\Documents\GitHub\PRAGA\n_data copy 3.csv",r"C:\Users\praneelpatel\Documents\GitHub\PRAGA\n_data copy 4.csv"]
 for id in pdb_ids:
     found = False
     for path in list_path:
         with open(path, "r") as file:
             lines = file.readlines()
-        
-        for line in lines:
-            line = line.split(",")
-            if found == False:
-                if line[0].upper() == id.upper():
 
-                    second_part = line[1] #ex.('TCW', 'Binding MOAD:\xa0 6TXV', 'Kd:&nbsp3100\xa0(nM) from 1 assay(s)')
-                    second_part = second_part.split(",")
-                    ligand = second_part[0]
-                    ligand = ligand[3:-1]
-                    ligand_list.append(ligand)
-                    found = True
+        for line in lines:
+            if ("Ki:&" or "Kd:&") in line:
+                if "Ki:&" in line:
+                    affinity_list.append("Ki")
+                if "Kd:&" in line:
+                    affinity_list.append("Kd")
+                line = line.split(",")
+                if found == False:
+                    if line[0].upper() == id.upper():
+                        
+                        second_part = line[1] #ex.('TCW', 'Binding MOAD:\xa0 6TXV', 'Kd:&nbsp3100\xa0(nM) from 1 assay(s)')
+                        second_part = second_part.split(",")
+                        ligand = second_part[0]
+                        ligand = ligand[3:-1]
+                        ligand_list.append(ligand)
+                        found = True
 
 smiles = []
 isomeric_smiles_list = []
@@ -708,7 +718,7 @@ def visualize_voxels(voxel_grid):
 
 pockets = voxel_pockets
 fingerprints = new_fingerprints
-
+labels = affinity_list
 print(type(fingerprints))
 
 # Hyperparameters
@@ -720,7 +730,6 @@ NUM_CLASSES = 2  # Kd or Ki
 protein_input = keras.Input(shape=(VOXEL_SIZE, VOXEL_SIZE, VOXEL_SIZE, 1), name="protein_3d")
 ligand_input = keras.Input(shape=(FINGERPRINT_SIZE,), name="ligand_fingerprint")
 
-
 # 3D CNN for the protein-ligand pocket
 x = layers.Conv3D(32, kernel_size=3, activation="relu")(protein_input)
 x = layers.MaxPooling3D(pool_size=2)(x)
@@ -729,12 +738,10 @@ x = layers.MaxPooling3D(pool_size=2)(x)
 x = layers.Flatten()(x)
 protein_output = layers.Dense(128, activation="relu")(x)
 
-
 # Dense layers for the ligand fingerprint
 y = layers.Dense(256, activation="relu")(ligand_input)
 y = layers.Dropout(0.5)(y)
 ligand_output = layers.Dense(128, activation="relu")(y)
-
 
 # Concatenate the outputs and finalize the model
 combined = layers.concatenate([protein_output, ligand_output])
@@ -742,19 +749,15 @@ z = layers.Dense(128, activation="relu")(combined)
 z = layers.Dropout(0.5)(z)
 final_output = layers.Dense(NUM_CLASSES, activation="softmax")(z)
 
-
 model = keras.Model(inputs=[protein_input, ligand_input], outputs=final_output)
-
 
 model.compile(optimizer="adam", loss="sparse_categorical_crossentropy", metrics=["accuracy"])
 
-
 print(model.summary())
- 
 
 protein_data = pockets  # Random data for demonstration
 ligand_data = np.array(fingerprints)
-label_list = ["Kd", "Ki"] * 500
+label_list = labels
 labels = np.array([0 if label == "Kd" else 1 for label in label_list])
 
 # Training
@@ -787,7 +790,6 @@ plt.tight_layout()
 plt.show()
 
 
-# Classification Report
 predicted_labels = np.argmax(predicted_probs, axis=1)
 print(classification_report(labels, predicted_labels, target_names=["Kd", "Ki"]))
 
