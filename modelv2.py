@@ -469,7 +469,7 @@ def extract_data(lines): #list of all
             elif "nM" in section:
                 n_other +=1
 
-    coord, atom, total_list, com, torsion_angle_list, prot_coords, ligand_coords, prot_atoms, ligand_atoms,fastas,ids = prot_extract(pdb_ids[0:5])
+    coord, atom, total_list, com, torsion_angle_list, prot_coords, ligand_coords, prot_atoms, ligand_atoms,fastas,ids = prot_extract(pdb_ids)
 
     print("coord: " + str(len(coord)))
     print("atom: " + str(len(atom))) 
@@ -682,9 +682,10 @@ for arr in pockets:
 
 pockets = padded_data
 fingerprints = new_fingerprints
-
+print("::::")
+print(len(pockets))
+print(len(fingerprints))
 #voxelize pockets
-
 
 def voxelize(coordinates, grid_size):
     voxel_grid = np.zeros((grid_size, grid_size, grid_size), dtype=np.uint8)
@@ -766,9 +767,11 @@ print(len(protein_data))
 print(len(ligand_data))
 print(len(label_list))
 labels = np.array([0 if label == "Kd" else 1 for label in label_list])
-
+for label in label:
+    if lablel == 0:
+        print(0)
 # Training
-history = model.fit([protein_data, ligand_data], labels, epochs=20, batch_size=32, validation_split=0.2)
+history = model.fit([protein_data, ligand_data], labels, epochs=1, batch_size=32, validation_split=0.2)
 
 
 # Visualization of Accuracy / Epochs
@@ -794,10 +797,4 @@ plt.legend(loc="lower right")
 
 plt.tight_layout()
 plt.show()
-
-
-predicted_labels = np.argmax(predicted_probs, axis=1)
-print(classification_report(labels, predicted_labels, target_names=["Kd", "Ki"]))
-
-
 
