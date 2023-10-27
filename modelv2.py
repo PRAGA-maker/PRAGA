@@ -462,6 +462,7 @@ def extract_data(lines): #list of all
         #now affinity type
         meat_copy = meat
         for section in meat: 
+            print(section)
             if "Kd" in section:
                 n_kd +=1 
             elif "Ki" in section:
@@ -529,7 +530,7 @@ for path in list_path:
         lines = file.readlines()
     new_lines = []
     for line in lines:
-        if ("Ki:&" or "Kd:&") in line:
+        if "Ki:&" in line or "Kd:&" in line:
             new_lines.append(line)
     lines = new_lines
     n_pdb_bind, n_moad, n_binding_db, n_kd,n_ki, n_other,ids,pockets = extract_data(lines)
@@ -766,6 +767,7 @@ label_list = labels
 print(len(protein_data))
 print(len(ligand_data))
 print(len(label_list))
+label_list = label_list[:1322]
 labels = np.array([0 if label == "Kd" else 1 for label in label_list])
 for label in label:
     if lablel == 0:
